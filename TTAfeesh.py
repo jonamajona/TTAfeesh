@@ -1,7 +1,7 @@
 from enum import Enum
 from random import shuffle
 from math import ceil
-
+TEST TEST
 class Card:
     def __init__(self, name, age, num_2P, num_3P, num_4P):
         self.name = name
