@@ -1,5 +1,6 @@
 from enum import Enum
 from random import shuffle
+from math import ceil
 
 class Card:
     def __init__(self, name, age, num_2P, num_3P, num_4P):
@@ -47,6 +48,8 @@ class Urban(Card):
         self.might = might
         self.happy_faces = happy_faces
         self.yellow_tokens = 0
+        self.science_cost = science_cost
+        self.rock_cost = rock_cost
 
 class Military(Card):
     def __init__(self, name, age, num_2P, num_3P, num_4P, type, might, science_cost, rock_cost):
@@ -114,6 +117,8 @@ class Tactic(Card):
         super().__init__(name, age, num_2P, num_3P, num_4P)
         
 class Decks:
+    #cards cards to auto-discard on card row
+    
     full_civil_deck = []
     full_military_deck = []
     partial_civil_deck = []
@@ -137,6 +142,9 @@ class Decks:
     age_I_military_deck = []
     age_II_military_deck = []
     age_III_military_deck = []
+
+    discarded_military_cards = []
+    discarded_civil_cards = []
 
     #Age A Government
     Despotism = Government('Despotism', 'A', 0, 0, 0, 4, 2, 2, None, None)
@@ -623,6 +631,12 @@ class Decks:
 
     def __init__(self, num_players):
         self.num_players = num_players
+        if num_players == 2:
+            self.auto_discard = 3
+        elif num_players == 3:
+            self.auto_discard = 2
+        elif players == 4:
+            self.auto_discard = 1
 
     def build_civil_deck(self):
         for card in self.civil_card:
@@ -699,7 +713,7 @@ class Decks:
         #shuffle age I leaders and wonders and add into civil deck
         shuffle(self.age_I_leaders)
         self.age_I_leaders = self.age_I_leaders[:num_leaders]
-        shuffle(self.age_A_wonders)
+        shuffle(self.age_I_wonders)
         self.age_I_wonders = self.age_I_wonders[:num_wonders]
         self.age_I_civil_deck += self.age_I_leaders + self.age_I_wonders
         shuffle(self.age_I_civil_deck)
@@ -722,7 +736,7 @@ class Decks:
 
         self.full_civil_deck = self.age_A_civil_deck + self.age_I_civil_deck + self.age_II_civil_deck + self.age_III_civil_deck
         self.partial_civil_deck = list(self.full_civil_deck)
-    
+
     def build_military_deck(self):
         for card in self.military_card:
             num = 0
@@ -754,12 +768,11 @@ class Decks:
                     i += 1
         #shuffle military decks
         shuffle(self.age_A_military_deck)
-        self.age_A_military_deck = self.age_A_military_deck[:6]
-        shuffle(self.age_A_civil_deck)
+        self.age_A_military_deck = self.age_A_military_deck[:self.num_players+2]
+        shuffle(self.age_A_military_deck)
         shuffle(self.age_I_military_deck)
         shuffle(self.age_II_military_deck)
         shuffle(self.age_III_military_deck)
-
         self.full_military_deck = self.age_A_military_deck + self.age_I_military_deck + self.age_II_military_deck + self.age_III_military_deck
         self.partial_military_deck = list(self.full_military_deck)
 
@@ -767,41 +780,39 @@ class Decks:
     def draw_civil_card(self):
         card_drawn = self.partial_civil_deck.pop(0)
         return card_drawn
+    
+    def discard_civil_card(self, index):
+        if not self.card_row[index] == None:
+            self.discarded_civil_cards.append(self.card_row.pop(index))
+        else:
+            self.card_row.pop(index)
 
     def draw_military_card(self):
         card_drawn = self.partial_military_deck.pop(0)
         return card_drawn
 
     def initialise_card_row(self):
-        i = 0
-        while i < 13:
+        for i in range(13):
             card_drawn = self.draw_civil_card()
             self.card_row.append(card_drawn)
-            i += 1
     
     def take_card(self, card_index):
         card_taken = self.card_row.pop(card_index)
+        self.card_row.insert(card_index, None)
         return card_taken
 
     def replenish_card_row(self):
-        i = 13
-        while i > len(self.card_row):
+        for i in range(self.auto_discard):
+            self.discard_civil_card(0)
+        self.card_row = list(filter(lambda card: card != None, self.card_row))
+        while len(self.card_row) < 13:
             new_card = self.draw_civil_card()
             self.card_row.append(new_card)
 
-# Each player has a
-# 1. Yellow Bank - Food consumption, cost to increase population, yellow tokens
-# 2. Blue Bank - Blue tokens, corruption
-# 3. Civil Cards in hand
-# 4. Military Cards in hand
-# 5. Civil Cards in play (Wonders, leader, buildings, technologies, government, military technologies)
-# 6. Military cards in play (tactics, pacts, wars, aggressions)
-# 7. Production (food, rocks, science, culture)
-# 8. Resources (food, rocks, science, culture)
-# 9. Happy Faces
-# 10. Colonisation bonus
-# 11. Military Might
-#Yellow_Bank: yellow_tokens, return food_cost and consumption
+    def new_game(self):
+        self.build_civil_deck()
+        self.build_military_deck()
+        self.initialise_card_row()
 
 
 class Player():
@@ -819,15 +830,9 @@ class Player():
         self.food = 0
         self.science = 0
         self.culture = 0
-        self.farms = [decks.Agriculture, decks.Irrigation, decks.Selective_Breeding, decks.Mechanized_Agriculture]
-        self.mines = [decks.Bronze, decks.Iron, decks.Coal, decks.Oil]
-        self.mines[0].blue_cubes = 5
-        self.mines[1].blue_cubes = 1
-        self.mines[2].blue_cubes = 2
-        self.mines[3].blue_cubes = 0
-        self.labs = [decks.Philosophy]
-        self.temples = [decks.Religion]
-        self.infantry = [decks.Warriors]
+        self.production = [decks.Agriculture, decks.Bronze]
+        self.urban = [decks.Philosophy, decks.Religion]
+        self.military_tech = [decks.Warriors]
 
     def get_food_cost(self):
         if self.yellow_bank > 16:
@@ -865,6 +870,129 @@ class Player():
         else:
             return 6
 
+    def get_food_prod(self):
+        food_prod = 0
+        for card in self.farms:
+            food_prod += card.prod * card.yellow_tokens
+        return food_prod
+
+    def get_rock_prod(self):
+        rock_prod = 0
+        for card in self.mines:
+            rock_prod += card.prod * card.yellow_tokens
+        return rock_prod
+
+    def lose_food(self, food):
+        food_to_lose = food
+        food_taken = 0
+        for card in self.production:
+            if card.type == 'farm':
+                while food_to_lose > 0 and card.blue_cubes > 0:
+                    food_taken += card.prod
+                    food_to_lose -= card.prod
+                    card.blue_cubes -= 1
+                    self.food -= card.prod
+                    self.blue_cubes += 1
+                    print(f"Blue cube taken from {card.name}. {food_taken} food taken so far.")
+        left_over = food_taken - food
+        print(f"There is {left_over} food left over.")
+        for card in reversed(self.production):
+            if card.type == 'farm':
+                while left_over >= card.prod:
+                    card.blue_cubes += 1
+                    self.food += card.prod
+                    self.blue_cubes -= 1
+                    left_over -= card.prod
+                    print(f"Blue cube added to {card.name}. There is {left_over} food left to add")
+        if left_over < 0:
+            self.culture += left_over * 4
+            print(f"Your people are starving! You lost {left_over * -4} culture points")
+
+    def lose_rocks(self, rocks):
+        rocks_to_lose = rocks
+        rocks_taken = 0
+        for card in self.production:
+            if card.type == 'mine':
+                while rocks_to_lose > 0 and card.blue_cubes > 0:
+                    rocks_taken += card.prod
+                    rocks_to_lose -= card.prod
+                    card.blue_cubes -= 1
+                    self.rocks -= card.prod
+                    self.blue_cubes += 1
+                    print(f"Blue cube taken from {card.name}. {rocks_taken} rocks taken so far.")
+        left_over = rocks_taken - rocks
+        print(f"There are {left_over} rocks left over.")
+        for card in reversed(self.production):
+            if card.type == 'mine':
+                while left_over >= card.prod:
+                    card.blue_cubes += 1
+                    self.rocks += card.prod
+                    self.blue_cubes -= 1
+                    left_over -= card.prod
+                    print(f"Blue cube added to {card.name}. There are {left_over} rocks left to add")
+        if left_over < 0:
+            self.lose_food(left_over*-1)
+            print(f"You lost {left_over*-1} food ")
+
+    def produce_food(self):
+        food_added = 0
+        for card in reversed(self.production):
+            if card.type == 'farm':
+                remaining_blue_cubes = card.yellow_tokens
+                while self.blue_cubes > 0 and remaining_blue_cubes > 0:
+                    self.blue_cubes -= 1
+                    card.blue_cubes += 1
+                    remaining_blue_cubes -= 1
+                    food_added += card.prod
+                if remaining_blue_cubes > 0:
+                    print(f"No more blue cubes left, some food lost")
+        self.food += food_added
+        print(f"You produced {food_added} food in total")
+
+    def produce_rocks(self):
+        rocks_added = 0
+        for card in reversed(self.production):
+            if card.type == 'mine':
+                remaining_blue_cubes = card.yellow_tokens
+                while self.blue_cubes > 0 and remaining_blue_cubes > 0:
+                    self.blue_cubes -= 1
+                    card.blue_cubes += 1
+                    remaining_blue_cubes -= 1
+                    rocks_added += card.prod
+                if remaining_blue_cubes > 0:
+                    print(f"No more blue cubes left, some resources lost")
+        self.rocks += rocks_added
+        print(f"You produced {rocks_added} resources in total")
+
+    #military cards discarded = number of military cards in hand minus number of MA
+    #military cards drawn = left over MA after turn (max of 3)   
+    def discard_military_cards(self, MA):
+        while len(self.military_hand) > MA:
+            cards_to_discard = len(self.military_hand) - MA
+            print(f"You must discard {cards_to_discard} military cards. \nYour military cards are:")
+            for index, card in enumerate(self.military_hand):
+                print(f"{index+1}: {card.name}")
+            proceed = False
+            while proceed == False:
+                try: 
+                    discard_index = int(input("Which card would you like to discard?"))
+                    if discard_index <= len(self.military_hand) and discard_index > 0:
+                        proceed = True
+                    else:
+                        raise ValueError()
+                except ValueError:
+                    print("Please enter a valid number")
+                    proceed = False
+            decks.discarded_military_cards.append(self.military_hand.pop(discard_index-1))
+
+    def score_science(self):
+        for card in self.urban:
+            self.science += card.science_prod * card.yellow_tokens
+
+    def score_culture(self):
+        for card in self.urban:
+            self.culture += card.culture_prod * card.yellow_tokens
+    
     def draw_military_cards(self, remaining_MA):
         if remaining_MA >= 3:
             remaining_MA = 3
@@ -873,72 +1001,51 @@ class Player():
             self.military_hand.append(new_military_card)
             remaining_MA -= 1
 
-    def lose_food(self, food):
-        food_to_lose = food
-        food_taken = 0
-        for card in self.farms:
-            while food_to_lose > 0 and card.blue_cubes > 0:
-                food_taken += card.prod
-                food_to_lose -= card.prod
-                card.blue_cubes -= 1
-                self.blue_cubes += 1
-                print(f"Blue cube taken from {card.name}. {food_taken} food taken so far.")
-        left_over = food_taken - food
-        print(f"There is {left_over} food left over.")
-        for card in reversed(self.farms):
-            while left_over >= card.prod:
-                card.blue_cubes += 1
-                self.blue_cubes -= 1
-                left_over -= card.prod
-                print(f"Blue cube added to {card.name}. There is {left_over} food left to add")
-        if left_over < 0:
-            self.culture += left_over * 4
-            print(f"Your people are starving! You lost {left_over * -4} culture points")
+    def calculate_discontent_workers(self):
+        if self.yellow_bank > 16:
+            discontent = 0
+        elif self.yellow_bank > 12:
+            discontent = 1 - self.happy_faces
+        else:
+            discontent = ceil((15 - self.yellow_bank)/2) - self.happy_faces
+        if discontent < 0:
+            return 0
+        else:
+            return discontent
 
-    def lose_rocks(self, rocks):
-        rocks_to_lose = rocks
-        rocks_taken = 0
-        for card in self.mines:
-            while rocks_to_lose > 0 and card.blue_cubes > 0:
-                rocks_taken += card.prod
-                rocks_to_lose -= card.prod
-                card.blue_cubes -= 1
-                self.blue_cubes += 1
-                print(f"Blue cube taken from {card.name}. {rocks_taken} rocks taken so far.")
-        left_over = rocks_taken - rocks
-        print(f"There are {left_over} rocks left over.")
-        for card in reversed(self.mines):
-            while left_over >= card.prod:
-                card.blue_cubes += 1
-                self.blue_cubes -= 1
-                left_over -= card.prod
-                print(f"Blue cube added to {card.name}. There are {left_over} rocks left to add")
-        if left_over < 0:
-            self.lose_food(left_over*-1)
-            print(f"You lost {left_over*-1} food ")
+    def check_for_uprising(self):
+        if self.idle_workers > self.calculate_discontent_workers():
+            return False
+        else:
+            return True
+    
+    def start_of_turn(self):
+        pass
+        
+    def end_of_turn(self):
+        self.discard_military_cards(self.MA)
+        if not self.check_for_uprising():
+            self.score_science()
+            self.score_culture()
+            self.lose_rocks(self.get_corruption())
+            self.produce_food()
+            self.lose_food(self.get_consumption())
+            self.produce_rocks()
+        else:
+            print("You have an uprising! Production Phase skipped")
+        self.draw_military_cards(self.MA)
 
-    def produce_food(self):
-        for card in self.farms:
-                blue_cubes = card.yellow_tokens * card.prod
-                self.blue_cubes -= blue_cubes
-                card.blue_cubes += blue_cubes
-                
+class Game:
+    def __init__(self):
+        pass
 
-
-#military cards discarded = number of military cards in hand minus number of MA
-#military cards drawn = left over MA after turn (max of 3)
 
 players = int(input("How many players? "))
 while players!= 2 and players!=3 and players!=4:
-    players = int(input("Please select 1, 2 or 3 players: "))
-print(f"\nThere are {players} players\n")
+    players = int(input("Please select 2, 3 or 4 players: "))
+print(f"There are {players} players\n")
 
-decks = Decks(players)
-decks.build_civil_deck()
-decks.build_military_deck()
-decks.initialise_card_row()
-
-for card in decks.card_row:
+'''for card in decks.card_row:
     print(card)
 which_card = int(input("Which card do ya want? "))
 card_taken = decks.take_card(which_card)
@@ -954,3 +1061,4 @@ player = Player()
 player.draw_military_cards(1)
 for card in player.military_hand:
     print(card.name)
+'''
