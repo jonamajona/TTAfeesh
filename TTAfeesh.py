@@ -116,9 +116,7 @@ class Tactic(Card):
     def __init__(self, name, age, num_2P, num_3P, num_4P):
         super().__init__(name, age, num_2P, num_3P, num_4P)
         
-class Decks:
-    #cards cards to auto-discard on card row
-    
+class Deck:    
     full_civil_deck = []
     full_military_deck = []
     partial_civil_deck = []
@@ -809,7 +807,7 @@ class Decks:
             new_card = self.draw_civil_card()
             self.card_row.append(new_card)
 
-    def new_game(self):
+    def setup_decks(self):
         self.build_civil_deck()
         self.build_military_deck()
         self.initialise_card_row()
@@ -822,7 +820,7 @@ class Player():
         self.blue_cubes = 16
         self.yellow_bank = 18
         self.idle_workers = 1
-        self.government = decks.Despotism
+        self.government = game.deck.Despotism
         self.CA = self.government.CA
         self.MA = self.government.MA
         self.happy_faces = 0
@@ -830,9 +828,9 @@ class Player():
         self.food = 0
         self.science = 0
         self.culture = 0
-        self.production = [decks.Agriculture, decks.Bronze]
-        self.urban = [decks.Philosophy, decks.Religion]
-        self.military_tech = [decks.Warriors]
+        self.production = [game.deck.Agriculture, game.deck.Bronze]
+        self.urban = [game.deck.Philosophy, game.deck.Religion]
+        self.military_tech = [game.deck.Warriors]
 
     def get_food_cost(self):
         if self.yellow_bank > 16:
@@ -983,7 +981,7 @@ class Player():
                 except ValueError:
                     print("Please enter a valid number")
                     proceed = False
-            decks.discarded_military_cards.append(self.military_hand.pop(discard_index-1))
+            game.deck.discarded_military_cards.append(self.military_hand.pop(discard_index-1))
 
     def score_science(self):
         for card in self.urban:
@@ -997,7 +995,7 @@ class Player():
         if remaining_MA >= 3:
             remaining_MA = 3
         while remaining_MA > 0:
-            new_military_card = decks.draw_military_card()
+            new_military_card = game.deck.draw_military_card()
             self.military_hand.append(new_military_card)
             remaining_MA -= 1
 
@@ -1035,12 +1033,59 @@ class Player():
             print("You have an uprising! Production Phase skipped")
         self.draw_military_cards(self.MA)
 
+    def take_turn(self):
+        end_turn = False
+        while end_turn == False:
+            choice = input(f"1: Use a Civil Action ({self.CA} remaining)\n2: Use a Military Action ({self.MA} remaining)\n3: End Turn\n")
+            if choice == 1 and self.CA > 0:
+                self.use_CA()
+            elif choice == 2 and self.MA > 0:
+                self.use_MA()
+            elif choice == 3:
+                end_turn = True
+            else:
+                print("Please enter a valid number\n")
+    
+    def use_CA(self):
+        self.CA -= 1
+        end_action = False
+        while end_action == False:
+            choice = input(f"1: Take a civil card\n2: Play a civil card\n3: Increase population\n4: Build a mine, farm or urban building\n5: Upgrade a mine, farm or urban building\n6: Build a stage of a wonder\n")
+            if choice == 1:
+                print("Which card would you like?\n")
+                for idx, card in enumerate(game.deck.card_row():
+                    print(f"{idx+1}: {card.name} {card.age}")
+
+    def use_MA(self):
+        pass
+
 class Game:
     def __init__(self):
         pass
 
+    def run_game(self):
+        self.setup_game()
+        running = False
+        while running == True:
+            pass
 
-players = int(input("How many players? "))
-while players!= 2 and players!=3 and players!=4:
-    players = int(input("Please select 2, 3 or 4 players: "))
-print(f"There are {players} players\n")
+    def round(self):
+        self.player1.take_turn()
+        self.player2.take_turn()
+
+    def setup_game(self):
+        num_players = self.how_many_players()
+        self.deck = Deck(num_players)
+        self.deck.setup_decks()
+        self.player1 = Player()
+        self.player2 = Player()
+
+    def how_many_players(self):
+        players = int(input("How many players? "))
+        while players!= 2 and players!=3 and players!=4:
+            players = int(input("Please select 2, 3 or 4 players: "))
+        print(f"There are {players} players\n")
+        return players
+
+game = Game()
+game.run_game()
