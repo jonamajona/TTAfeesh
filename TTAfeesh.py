@@ -1,7 +1,7 @@
 from enum import Enum
 from random import shuffle
 from math import ceil
-TEST TEST TEST
+
 class Card:
     def __init__(self, name, age, num_2P, num_3P, num_4P):
         self.name = name
@@ -1044,21 +1044,3 @@ players = int(input("How many players? "))
 while players!= 2 and players!=3 and players!=4:
     players = int(input("Please select 2, 3 or 4 players: "))
 print(f"There are {players} players\n")
-
-'''for card in decks.card_row:
-    print(card)
-which_card = int(input("Which card do ya want? "))
-card_taken = decks.take_card(which_card)
-print("\nThe card you took is " + card_taken.name + "\n")
-
-decks.replenish_card_row()
-print("\nThe replenished card row is\n\n")
-for card in decks.card_row:
-    print(card)
-
-
-player = Player()
-player.draw_military_cards(1)
-for card in player.military_hand:
-    print(card.name)
-'''
